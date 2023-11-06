@@ -36,7 +36,6 @@ async def player_info_form(id_of_chat: int):
 
 
 async def group_info_form(id_of_chat: int):
-    print(id_of_chat)
     if add_info_for_bot["circle"] == 0:
         add_info_for_bot["circle"] += 1
         await bot.send_message(text=f"Как называется твоя группа?",
@@ -49,10 +48,14 @@ async def group_info_form(id_of_chat: int):
         else:
             await bot.send_message(text=f"В каком жанре вы играете?",
                                    chat_id=id_of_chat, reply_markup=Keyboard.get_genres())
-    elif add_info_for_bot["circle"] == 2:
-        add_info_for_bot["circle"] += 1
-        await bot.send_message(text=f"У вас есть репетиционная база?",
-                               chat_id=id_of_chat)
+    elif add_info_for_bot["circle"] == 2 or add_info_for_bot["circle"] == 108:
+        if add_info_for_bot["circle"] == 2:
+            add_info_for_bot["circle"] += 1
+            await bot.send_message(text=f"У вас есть репетиционная база?",
+                                   chat_id=id_of_chat, reply_markup=Keyboard.true_false_kb())
+        else:
+            await bot.send_message(text=f"У вас есть репетиционная база?",
+                                   chat_id=id_of_chat, reply_markup=Keyboard.true_false_kb())
     elif add_info_for_bot["circle"] == 3:
         add_info_for_bot["circle"] += 1
         await bot.send_message(text=f"пришли фото его будут видеть другие пользователи",
@@ -116,7 +119,6 @@ async def find_player_form(id_of_chat: int):
 
 
 async def find_group_form(id_of_chat: int):
-    print(add_info_for_bot["circle"])
     if add_info_for_bot["circle"] == 0 or add_info_for_bot["circle"] == 320:
         if add_info_for_bot["circle"] == 0:
             add_info_for_bot["circle"] += 1.1
@@ -184,7 +186,14 @@ async def start_callback(callback_query: CallbackQuery):
     elif callback_query.data == 'musician':
         await group_info_form(callback_query.from_user.id)
     elif callback_query.data == "yes":
-        if add_info_for_bot["circle"] == 6:
+        if add_info_for_bot["circle"] == 3 or add_info_for_bot["circle"] == 108:
+            about_group_info_form["repetition_base"] = "Да"
+            if add_info_for_bot["circle"] == 3:
+                await group_info_form(callback_query.from_user.id)
+            else:
+                add_info_for_bot["circle"] = 6
+                await echo_group_blank(callback_query.from_user.id)
+        elif add_info_for_bot["circle"] == 6:
             await find_player_form(callback_query.from_user.id)
         elif add_info_for_bot["circle"] == 2.1 or add_info_for_bot["circle"] == 321:
             if add_info_for_bot["circle"] == 2.1:
@@ -195,14 +204,19 @@ async def start_callback(callback_query: CallbackQuery):
                 finding_group_info_form["repetition_base_of_group"] = "Да"
                 add_info_for_bot["circle"] = 3.1
                 await echo_finding_group_blank(callback_query.from_user.id)
-        elif add_info_for_bot["circle"] == 8.1:
+        elif add_info_for_bot["circle"] == 8.1 or add_info_for_bot["circle"] == 11:
             await user_menu(callback_query.from_user.id)
         elif add_info_for_bot["circle"] == 3.1:
             await player_info_form(callback_query.from_user.id)
-        elif add_info_for_bot["circle"] == 8.1:
-            await user_menu(callback_query.from_user.id)
     elif callback_query.data == "no":
-        if add_info_for_bot["circle"] == 6 or add_info_for_bot["circle"] == 11:
+        if add_info_for_bot["circle"] == 3 or add_info_for_bot["circle"] == 108:
+            about_group_info_form["repetition_base"] = "Нет"
+            if add_info_for_bot["circle"] == 3:
+                await group_info_form(callback_query.from_user.id)
+            else:
+                add_info_for_bot["circle"] = 6
+                await echo_group_blank(callback_query.from_user.id)
+        elif add_info_for_bot["circle"] == 6 or add_info_for_bot["circle"] == 11:
             await edit_form(callback_query.from_user.id)
         elif add_info_for_bot["circle"] == 2.1 or add_info_for_bot["circle"] == 321:
             if add_info_for_bot["circle"] == 2.1:
@@ -233,12 +247,14 @@ async def start_callback(callback_query: CallbackQuery):
                 about_group_info_form["genre"].append(callback_query.data)
                 await group_info_form(callback_query.from_user.id)
             else:
+                add_info_for_bot["request_for_edit"] = ""
                 await group_info_form(callback_query.from_user.id)
         else:
             if callback_query.data != "finish":
                 about_group_info_form["genre"].append(callback_query.data)
                 await group_info_form(callback_query.from_user.id)
             else:
+                add_info_for_bot["request_for_edit"] = ""
                 add_info_for_bot["circle"] = 6
                 await echo_group_blank(callback_query.from_user.id)
     elif callback_query.data in about_group_info_form.keys():
@@ -247,6 +263,9 @@ async def start_callback(callback_query: CallbackQuery):
         if callback_query.data == "photo_id":
             add_info_for_bot["circle"] = 110
             await bot.send_message(text="Отправьте новую картинку", chat_id=callback_query.from_user.id)
+        elif callback_query.data == "repetition_base":
+            add_info_for_bot["circle"] = 108
+            await group_info_form(callback_query.from_user.id)
         elif callback_query.data == "genre":
             add_info_for_bot["circle"] = 109
             about_group_info_form["genre"].clear()
