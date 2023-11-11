@@ -1,4 +1,5 @@
 about_player_info_form = {
+    "user_id": 0,
     "name": "",
     "gender_of_user": "",
     "age": 0,
@@ -15,6 +16,7 @@ finding_group_info_form = {
 
 
 about_group_info_form = {
+    "user_id": 0,
     "group_name": "",
     "genre": [],
     "repetition_base": "",
@@ -35,6 +37,9 @@ add_info_for_bot = {
     "last_user_msg_id": None,
     "circle": 0,
     "request_for_edit": "",
+    "n": 0,
+    "last": False,
+    "last_id": 0
 
 
 }

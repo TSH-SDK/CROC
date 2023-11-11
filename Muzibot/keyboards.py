@@ -1,6 +1,7 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 
-from data import finding_player_info_form, finding_group_info_form, about_player_info_form, add_info_for_bot
+from data import finding_player_info_form, finding_group_info_form, add_info_for_bot, about_player_info_form,\
+    about_group_info_form
 
 
 class Keyboard:
@@ -64,19 +65,35 @@ class Keyboard:
 
     @staticmethod
     def get_genres():
-        inline_kb5 = InlineKeyboardMarkup(row_width=2)
-        with open("genres.txt", "r", encoding="utf-8") as f:
-            text = f.read()
-            for i, j in enumerate(text.split("\n")):
-                inline_btn = InlineKeyboardButton(j, callback_data=f"{j}")
-                inline_kb5.add(inline_btn)
-            if len(finding_player_info_form["genre_of_player"]) != 0 or len(finding_group_info_form["genre_of_group"]) != 0:
-                add_but = InlineKeyboardButton("Закончить", callback_data="finish")
-                inline_kb5.add(add_but)
-            elif len("about_group_info_form") != 0:
-                add_but = InlineKeyboardButton("Закончить", callback_data="finish")
-                inline_kb5.add(add_but)
-            return inline_kb5
+        reply_kb5 = ReplyKeyboardMarkup(resize_keyboard=True, row_width=3)
+        button1 = KeyboardButton("Фолк-музыка")
+        button2 = KeyboardButton("Кантри")
+        button3 = KeyboardButton("Блюз")
+        button4 = KeyboardButton("Ритм-н-блюз")
+        button5 = KeyboardButton("Джаз")
+        button6 = KeyboardButton("Классическая музыка")
+        button7 = KeyboardButton("Электронная музыка")
+        button8 = KeyboardButton("Рок")
+        button9 = KeyboardButton("Метал")
+        button10 = KeyboardButton("Хип-хоп")
+        button11 = KeyboardButton("Регги")
+        button12 = KeyboardButton("Фанк")
+        button13 = KeyboardButton("Соул")
+        button14 = KeyboardButton("Диско")
+        button15 = KeyboardButton("Поп-музыка")
+        reply_kb5.row(button1, button2, button3)
+        reply_kb5.row(button4, button5, button6)
+        reply_kb5.row(button7,button8, button9)
+        reply_kb5.row(button10, button11, button12)
+        reply_kb5.row(button13, button14, button15)
+        if len(finding_player_info_form["genre_of_player"]) != 0 or \
+                len(finding_group_info_form["genre_of_group"]) != 0:
+            add_but = KeyboardButton("Закончить")
+            reply_kb5.row(add_but)
+        elif len(about_group_info_form["genre"]) != 0 or about_player_info_form["genre_of_user"]:
+            add_but = KeyboardButton("Закончить")
+            reply_kb5.row(add_but)
+        return reply_kb5
 
     @staticmethod
     def edit_about_player_form():
@@ -89,3 +106,38 @@ class Keyboard:
         inline_kb_9 = InlineKeyboardMarkup().add(inline_btn_1, inline_btn_2, inline_btn_3, inline_btn_4, inline_btn_5,
                                                  inline_btn_6)
         return inline_kb_9
+
+    @staticmethod
+    def user_menu():
+        inline_btn_1 = InlineKeyboardButton("Уведомления", callback_data="notify")
+        inline_btn_2 = InlineKeyboardButton("Лента объявлений", callback_data="newsfeed")
+        inline_kb_10 = InlineKeyboardMarkup().add(inline_btn_1, inline_btn_2)
+        return inline_kb_10
+
+    @staticmethod
+    def like_dislike():
+        inline_btn_1 = InlineKeyboardButton("Лайк❤️", callback_data="like")
+        inline_btn_2 = InlineKeyboardButton("Дизлайк", callback_data="dislike")
+        if not add_info_for_bot["last"]:
+            inline_btn_3 = InlineKeyboardButton("Выйти в меню", callback_data="user_menu")
+            inline_kb_11 = InlineKeyboardMarkup(row_width=2).add(inline_btn_1, inline_btn_2, inline_btn_3)
+        else:
+            inline_kb_11 = InlineKeyboardMarkup(row_width=2).add(inline_btn_1, inline_btn_2)
+        return inline_kb_11
+
+    @staticmethod
+    def back_to_menu():
+        inline_btn = InlineKeyboardButton("Выйти в меню", callback_data="user_menu")
+        inline_kb_12 = InlineKeyboardMarkup().add(inline_btn)
+        return inline_kb_12
+
+    @staticmethod
+    def answer_kb():
+        inline_btn_1 = InlineKeyboardButton("Написать", callback_data="write")
+        inline_btn_2 = InlineKeyboardButton("Игнорировать", callback_data="ignore")
+        if not add_info_for_bot["last"]:
+            inline_btn_3 = InlineKeyboardButton("Выйти в меню", callback_data="user_menu")
+            inline_kb_13 = InlineKeyboardMarkup(row_width=2).add(inline_btn_1, inline_btn_2, inline_btn_3)
+        else:
+            inline_kb_13 = InlineKeyboardMarkup(row_width=2).add(inline_btn_1, inline_btn_2)
+        return inline_kb_13
