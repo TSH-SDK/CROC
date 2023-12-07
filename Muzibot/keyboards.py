@@ -3,6 +3,8 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeybo
 from data import finding_player_info_form, finding_group_info_form, add_info_for_bot, about_player_info_form,\
     about_group_info_form
 
+from db_module import check_genres, check_find_genres, group_age, check_false
+
 
 class Keyboard:
 
@@ -15,15 +17,22 @@ class Keyboard:
 
     @staticmethod
     def true_false_kb():
-        inline_btn_1 = InlineKeyboardButton("Да", callback_data="yes")
-        inline_btn_2 = InlineKeyboardButton("Нет", callback_data="no")
+        inline_btn_1 = InlineKeyboardButton("Да", callback_data="Да")
+        inline_btn_2 = InlineKeyboardButton("Нет", callback_data="Нет")
         inline_kb2 = InlineKeyboardMarkup().row(inline_btn_1, inline_btn_2)
         return inline_kb2
 
     @staticmethod
+    def true_edit_kb():
+        inline_btn_1 = InlineKeyboardButton("Да", callback_data="Да")
+        inline_btn_2 = InlineKeyboardButton("Изменить", callback_data="Изменить")
+        inline_kb14 = InlineKeyboardMarkup().row(inline_btn_1, inline_btn_2)
+        return inline_kb14
+
+    @staticmethod
     def edit_group_form_kb():
         inline_btn_1 = InlineKeyboardButton("Название группы", callback_data="group_name")
-        inline_btn_2 = InlineKeyboardButton("Жанр", callback_data="genre")
+        inline_btn_2 = InlineKeyboardButton("Жанр", callback_data="genres")
         inline_btn_3 = InlineKeyboardButton("Наличие репетиционной базы", callback_data="repetition_base")
         inline_btn_4 = InlineKeyboardButton("О группе", callback_data="about_group")
         inline_btn_5 = InlineKeyboardButton("Картинка", callback_data="photo_id")
@@ -36,7 +45,7 @@ class Keyboard:
     def edit_finding_player_form_kb():
         inline_btn_1 = InlineKeyboardButton("Пол", callback_data="gender")
         inline_btn_2 = InlineKeyboardButton("Возраст", callback_data="age_range")
-        inline_btn_3 = InlineKeyboardButton("Жанр", callback_data="genre_of_player")
+        inline_btn_3 = InlineKeyboardButton("Жанр", callback_data="fp_genres")
         inline_btn_4 = InlineKeyboardButton("Текст объявления", callback_data="add_text")
         inline_btn_5 = InlineKeyboardButton("Назад", callback_data="back")
         inline_kb_6 = InlineKeyboardMarkup().add(inline_btn_1, inline_btn_2, inline_btn_3, inline_btn_4, inline_btn_5)
@@ -45,7 +54,7 @@ class Keyboard:
 
     @staticmethod
     def edit_finding_group_form_kb():
-        inline_btn_1 = InlineKeyboardButton("Жанр", callback_data="genre_of_group")
+        inline_btn_1 = InlineKeyboardButton("Жанр", callback_data="fg_genres")
         inline_btn_2 = InlineKeyboardButton("Наличие репетиционной базы", callback_data="repetition_base_of_group")
         inline_btn_3 = InlineKeyboardButton("Назад", callback_data="back")
         inline_kb_7 = InlineKeyboardMarkup().add(inline_btn_1, inline_btn_2, inline_btn_3)
@@ -53,18 +62,18 @@ class Keyboard:
         return inline_kb_7
 
     @staticmethod
-    def get_gender():
+    async def get_gender(user_id):
         inline_kb4 = InlineKeyboardMarkup()
         inline_btn_1 = InlineKeyboardButton("Парень", callback_data="Парень")
         inline_btn_2 = InlineKeyboardButton("Девушка", callback_data="Девушка")
-        if add_info_for_bot["circle"] != 4.1 and add_info_for_bot["circle"] != 421:
+        if await group_age(user_id):
             inline_btn_3 = InlineKeyboardButton("Без разницы", callback_data="Без разницы")
             inline_kb4.add(inline_btn_3)
         inline_kb4.add(inline_btn_1, inline_btn_2)
         return inline_kb4
 
     @staticmethod
-    def get_genres():
+    async def get_genres(user_id):
         reply_kb5 = ReplyKeyboardMarkup(resize_keyboard=True, row_width=3)
         button1 = KeyboardButton("Фолк-музыка")
         button2 = KeyboardButton("Кантри")
@@ -81,18 +90,19 @@ class Keyboard:
         button13 = KeyboardButton("Соул")
         button14 = KeyboardButton("Диско")
         button15 = KeyboardButton("Поп-музыка")
+        check_box = ["fp_genres", "fg_genres"]
+        if await check_genres(user_id) and await check_false(user_id) == "genres":
+            add_but = KeyboardButton("Закончить")
+            reply_kb5.row(add_but)
+        elif await check_find_genres(user_id) and await check_false(user_id) in check_box:
+            add_but = KeyboardButton("Закончить")
+            reply_kb5.row(add_but)
         reply_kb5.row(button1, button2, button3)
         reply_kb5.row(button4, button5, button6)
         reply_kb5.row(button7,button8, button9)
         reply_kb5.row(button10, button11, button12)
         reply_kb5.row(button13, button14, button15)
-        if len(finding_player_info_form["genre_of_player"]) != 0 or \
-                len(finding_group_info_form["genre_of_group"]) != 0:
-            add_but = KeyboardButton("Закончить")
-            reply_kb5.row(add_but)
-        elif len(about_group_info_form["genre"]) != 0 or about_player_info_form["genre_of_user"]:
-            add_but = KeyboardButton("Закончить")
-            reply_kb5.row(add_but)
+
         return reply_kb5
 
     @staticmethod
@@ -100,18 +110,20 @@ class Keyboard:
         inline_btn_1 = InlineKeyboardButton("Имя", callback_data="name")
         inline_btn_2 = InlineKeyboardButton("Пол", callback_data="gender_of_user")
         inline_btn_3 = InlineKeyboardButton("Возраст", callback_data="age")
-        inline_btn_4 = InlineKeyboardButton("Жанр", callback_data="genre_of_user")
-        inline_btn_5 = InlineKeyboardButton("Текст объявления", callback_data="add_text_of_player")
-        inline_btn_6 = InlineKeyboardButton("Назад", callback_data="back")
+        inline_btn_4 = InlineKeyboardButton("Жанр", callback_data="genres")
+        inline_btn_5 = InlineKeyboardButton("Фото", callback_data="photo_id")
+        inline_btn_6 = InlineKeyboardButton("Текст объявления", callback_data="add_text_of_player")
+        inline_btn_7 = InlineKeyboardButton("Назад", callback_data="back")
         inline_kb_9 = InlineKeyboardMarkup().add(inline_btn_1, inline_btn_2, inline_btn_3, inline_btn_4, inline_btn_5,
-                                                 inline_btn_6)
+                                                 inline_btn_6, inline_btn_7)
         return inline_kb_9
 
     @staticmethod
     def user_menu():
         inline_btn_1 = InlineKeyboardButton("Уведомления", callback_data="notify")
-        inline_btn_2 = InlineKeyboardButton("Лента объявлений", callback_data="newsfeed")
-        inline_kb_10 = InlineKeyboardMarkup().add(inline_btn_1, inline_btn_2)
+        inline_btn_2 = InlineKeyboardButton("Изменить анкету", callback_data="change_ank")
+        inline_btn_3 = InlineKeyboardButton("Лента объявлений", callback_data="newsfeed")
+        inline_kb_10 = InlineKeyboardMarkup().add(inline_btn_1, inline_btn_2, inline_btn_3)
         return inline_kb_10
 
     @staticmethod

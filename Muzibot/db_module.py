@@ -1,7 +1,8 @@
 import asyncio
 import asyncpg
 
-from data import about_player_info_form, finding_group_info_form, about_group_info_form, finding_player_info_form
+from data import about_player_info_form, finding_group_info_form, about_group_info_form, finding_player_info_form \
+    , usr_group, usr_player
 
 
 async def main():
@@ -14,13 +15,24 @@ async def main():
                     )
                 ''')
     await conn.execute('''
+            CREATE TABLE IF NOT EXISTS groups(
+                groups_id serial PRIMARY KEY,
+                user_id INT,
+                group_name TEXT,
+                repetition_base VARCHAR(4),
+                about_group TEXT,
+                photo_id TEXT
+            )
+        ''')
+    await conn.execute('''
             CREATE TABLE IF NOT EXISTS players (
                 players_id serial PRIMARY KEY,
                 user_id INT,
                 name TEXT,
                 gender_of_user VARCHAR(12), 
                 age INT,
-                add_text_of_player TEXT
+                add_text_of_player TEXT,
+                photo_id TEXT
             )
         ''')
     await conn.execute('''
@@ -42,16 +54,6 @@ async def main():
             )
     ''')
 
-    await conn.execute('''
-            CREATE TABLE IF NOT EXISTS groups(
-                groups_id serial PRIMARY KEY,
-                user_id INT,
-                group_name TEXT,
-                repetition_base VARCHAR(4),
-                about_group TEXT,
-                photo_id TEXT
-            )
-        ''')
 
     await conn.execute('''
                 CREATE TABLE IF NOT EXISTS liked_group(
@@ -106,6 +108,45 @@ async def main():
                             fg_id INTEGER NOT NULL REFERENCES find_groups,
                             genres_id INTEGER NOT NULL REFERENCES genres,
                             UNIQUE(fg_id, genres_id)
+                        )
+                ''')
+
+    await conn.execute('''
+                        CREATE TABLE IF NOT EXISTS user_group_ank(
+                            id serial PRIMARY KEY,
+                            user_id INTEGER,
+                            group_name VARCHAR(4) DEFAULT 'Нет',
+                            repetition_base VARCHAR(4) DEFAULT 'Нет',
+                            about_group VARCHAR(4) DEFAULT 'Нет',
+                            photo_id VARCHAR(4) DEFAULT 'Нет',
+                            genres VARCHAR(4) DEFAULT 'Нет',
+                            group_part VARCHAR(4) DEFAULT 'Нет',
+                            check_g_part VARCHAR(4) DEFAULT 'Нет',
+                            gender VARCHAR(4) DEFAULT 'Нет',
+                            age_range VARCHAR(4) DEFAULT 'Нет', 
+                            add_text VARCHAR(4) DEFAULT 'Нет',
+                            fp_genres VARCHAR(4) DEFAULT 'Нет',
+                            fp_part VARCHAR(4) DEFAULT 'Нет',
+                            check_fp_part VARCHAR(4) DEFAULT 'Нет'
+                    )
+            ''')
+
+    await conn.execute('''
+                            CREATE TABLE IF NOT EXISTS user_player_ank(
+                                id serial PRIMARY KEY,
+                                user_id INTEGER,
+                                name VARCHAR(4) DEFAULT 'Нет',
+                                gender_of_user VARCHAR(4) DEFAULT 'Нет', 
+                                photo_id VARCHAR(4) DEFAULT 'Нет',
+                                age VARCHAR(4) DEFAULT 'Нет',
+                                add_text_of_player VARCHAR(4) DEFAULT 'Нет',
+                                genres VARCHAR(4) DEFAULT 'Нет',
+                                player_part VARCHAR(4) DEFAULT 'Нет',
+                                check_p_part VARCHAR(4) DEFAULT 'Нет',
+                                repetition_base_of_group VARCHAR(4) DEFAULT 'Нет',
+                                fg_genres VARCHAR(4) DEFAULT 'Нет',
+                                fg_part VARCHAR(4) DEFAULT 'Нет',
+                                check_g_part VARCHAR(4) DEFAULT 'Нет'
                         )
                 ''')
 
@@ -169,61 +210,228 @@ async def get_fg_id(player_id):
     await conn.close()
 
 
-async def add_fg_genres(user_id):
+async def add(user_id, what):
     conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
-    fg_id = await get_fg_id(user_id)
-    for i in finding_group_info_form["genre_of_group"]:
-        genre_id = await (get_genre_id(i))
+    group = await conn.fetch(f'''
+                        SELECT * FROM user_group_ank WHERE user_id={user_id}
+                        ''')
 
+    player = await conn.fetch(f'''
+                        SELECT * FROM user_player_ank WHERE user_id={user_id}
+                        ''')
+    if group:
+        case = None
+        about_list = ["group_name", "repetition_base", "about_group", "photo_id"]
+        about_list2 = ["genres", "age_range", "gender",  "add_text", "fp_genres"]
+        for i in range(13):
+            if group[0][usr_group[i + 1]] != "Нет":
+                pass
+            else:
+                case = usr_group[i + 1]
+                break
         await conn.execute(f'''
-                     INSERT INTO fg_genres(fg_id, genres_id) VALUES({fg_id}, {genre_id});
-                ''')
+                        UPDATE user_group_ank SET {case}='Да' WHERE user_id={user_id}
+                        ''')
+        if case in about_list:
+            if case != "photo_id":
+                await conn.execute(f'''
+                                   UPDATE groups SET {case}='{what}' WHERE user_id={user_id}
+                                ''')
+                await conn.close()
+            else:
+                await conn.execute(f'''
+                                    UPDATE groups SET {case}='{what}' WHERE user_id={user_id}
+                                   ''')
+                await conn.close()
+        else:
+            group_id = await conn.fetch(f'''
+                                    SELECT groups_id FROM groups WHERE user_id={user_id}
+                                ''')
+            fp_id = await conn.fetch(f'''
+                                        SELECT fp_id FROM find_players WHERE groups_id={group_id[0]["groups_id"]}
+                                                ''')
+            if case == "genres":
+                if what != "Закончить":
+                    await conn.execute(f'''
+                                    UPDATE user_group_ank SET {case}='Нет' WHERE user_id={user_id}
+                                ''')
+                    genre_id = await conn.fetch(f'''
+                                            SELECT genres_id FROM genres WHERE name='{what}'                    
+                                        ''')
 
-    await conn.close()
+                    await conn.execute(f'''
+                                 INSERT INTO groups_genres(groups_id, genres_id) VALUES({group_id[0]["groups_id"]}, {genre_id[0]["genres_id"]});
+                            ''')
+                    await conn.close()
+                else:
+                    await conn.execute(f'''
+                                    UPDATE user_group_ank SET genres='Да' WHERE user_id={user_id}
+                                ''')
+                    await conn.execute(f'''
+                                    UPDATE user_group_ank SET group_part='Да' WHERE user_id={user_id}
+                               ''')
+                    await conn.close()
+            elif case == "check_g_part":
+                await conn.execute(f'''
+                            UPDATE user_group_ank SET check_g_part='Да' WHERE user_id={user_id}
+                        ''')
+            elif case == "gender":
+                await conn.execute(f'''
+                                    UPDATE find_players SET gender='{what}' WHERE fp_id={fp_id[0]["fp_id"]}
+                                ''')
+                await conn.close()
+            elif case == "age_range":
+                group_id = await conn.fetch(f'''
+                                            SELECT groups_id FROM groups WHERE user_id={user_id}
+                                        ''')
 
-
-async def add_find_group():
-    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
-
-    player_id = await (get_user_id(about_player_info_form["user_id"]))
-
-    await conn.execute(f'''
-             INSERT INTO find_groups(repetition_base_of_group, players_id) VALUES(
-                '{finding_group_info_form["repetition_base_of_group"]}', {player_id}
-             )''')
-
-    await conn.close()
-
-    await (add_fg_genres(player_id))
-
-
-async def add_players_genres():
-    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
-    for i in about_player_info_form["genre_of_user"]:
-        genre_id = await (get_genre_id(i))
-        player_id = await (get_user_id(about_player_info_form["user_id"]))
-
+                age = await conn.fetch(f'''
+                                            SELECT age_range FROM find_players WHERE fp_id={fp_id[0]["fp_id"]}
+                                        ''')
+                if age[0]["age_range"] is None:
+                    await conn.execute(f'''
+                                UPDATE find_players SET age_range={what} WHERE groups_id={group_id[0]["groups_id"]} 
+                            ''')
+                    await conn.execute(f'''
+                                    UPDATE user_group_ank SET age_range='Нет' WHERE user_id={user_id}
+                                ''')
+                elif age[0]["age_range"] is not None:
+                    await conn.execute(f'''
+                                UPDATE find_players SET age_range={int(str(age[0]["age_range"])+str(what))}
+                            ''')
+            elif case == "add_text":
+                await conn.execute(f'''
+                               UPDATE find_players SET add_text='{what}' WHERE groups_id={group_id[0]["groups_id"]}  
+                                ''')
+                await conn.close()
+            elif case == "check_fp_part":
+                await conn.execute(f'''
+                            UPDATE user_group_ank SET check_fp_part='Да' WHERE user_id={user_id}
+                        ''')
+            else:
+                if what != "Закончить":
+                    await conn.execute(f'''
+                                     UPDATE user_group_ank SET {case}='Нет' WHERE user_id={user_id}
+                                ''')
+                    genre_id = await conn.fetch(f'''
+                                                SELECT genres_id FROM genres WHERE name='{what}'                    
+                                            ''')
+                    await conn.execute(f'''
+                                        INSERT INTO fp_genres(fp_id, genres_id) VALUES({fp_id[0]["fp_id"]}, {genre_id[0]["genres_id"]})
+                                    ''')
+                    await conn.close()
+                else:
+                    await conn.execute(f'''
+                                     UPDATE user_group_ank SET fp_part='Да' WHERE user_id={user_id}
+                                 ''')
+                    await conn.execute(f'''
+                                    UPDATE user_group_ank SET fp_genres='Да' WHERE user_id={user_id}
+                                ''')
+                    await conn.close()
+    else:
+        case = None
+        about_list = ["name", "gender_of_user", "age", "add_text_of_player", "photo_id"]
+        about_list2 = ["genres", "repetition_base_of_group", "fg_genres"]
+        for i in range(10):
+            if player[0][usr_player[i + 3.1]] != "Нет":
+                pass
+            else:
+                case = usr_player[i + 3.1]
+                break
         await conn.execute(f'''
-             INSERT INTO players_genres(players_id, genres_id) VALUES({player_id}, {genre_id});
-        ''')
+                            UPDATE user_player_ank SET {case}='Да' WHERE user_id={user_id}
+                        ''')
+        if case in about_list:
+            if case != "photo_id":
+                await conn.execute(f'''
+                                    UPDATE players SET {case}='{what}' WHERE user_id={user_id}
+                                        ''')
+                await conn.close()
+            else:
+                await conn.execute(f'''
+                                            UPDATE players SET {case}='{what}' WHERE user_id={user_id}
+                                           ''')
+                await conn.close()
+        else:
+            player_id = await conn.fetch(f'''
+                                            SELECT players_id FROM players WHERE user_id={user_id}
+                                        ''')
+            fg_id = await conn.fetch(f'''
+                                                SELECT fg_id FROM find_groups WHERE players_id={player_id[0]["players_id"]}
+                                                        ''')
+            if case == "genres":
+                if what != "Закончить":
+                    await conn.execute(f'''
+                                            UPDATE user_player_ank SET {case}='Нет' WHERE user_id={user_id}
+                                        ''')
+                    genre_id = await conn.fetch(f'''
+                                                    SELECT genres_id FROM genres WHERE name='{what}'                    
+                                                ''')
 
-    await conn.close()
+                    await conn.execute(f'''
+                                         INSERT INTO players_genres(players_id, genres_id) 
+                                         VALUES({player_id[0]["players_id"]}, {genre_id[0]["genres_id"]});
+                                    ''')
+                    await conn.close()
+                else:
+                    await conn.execute(f'''
+                                            UPDATE user_player_ank SET genres='Да' WHERE user_id={user_id}
+                                        ''')
+                    await conn.execute(f'''
+                                            UPDATE user_player_ank SET player_part='Да' WHERE user_id={user_id}
+                                       ''')
+                    await conn.close()
+            elif case == "check_p_part":
+                await conn.execute(f'''
+                                    UPDATE user_player_ank SET check_p_part='Да' WHERE user_id={user_id}
+                                ''')
 
+                await conn.close()
 
-async def add_player():
-    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
-    await conn.execute(f'''
+            elif case == "repetition_base_of_group":
+                await conn.execute(f'''
+                                       UPDATE find_groups SET repetition_base_of_group='{what}' 
+                                       WHERE fg_id={fg_id[0]["fg_id"]}  
+                                        ''')
+                await conn.close()
+            elif case == "check_g_part":
+                await conn.execute(f'''
+                                    UPDATE user_player_ank SET check_g_part='Да' WHERE user_id={user_id}
+                                ''')
+            else:
+                if what != "Закончить":
+                    await conn.execute(f'''
+                                             UPDATE user_player_ank SET {case}='Нет' WHERE user_id={user_id}
+                                        ''')
+                    genre_id = await conn.fetch(f'''
+                                                        SELECT genres_id FROM genres WHERE name='{what}'                    
+                                                    ''')
+                    await conn.execute(f'''
+                                                INSERT INTO fg_genres(fg_id, genres_id) VALUES({fg_id[0]["fg_id"]}, {genre_id[0]["genres_id"]})
+                                            ''')
+                    await conn.close()
+                else:
+                    await conn.execute(f'''
+                                             UPDATE user_player_ank SET fg_part='Да' WHERE user_id={user_id}
+                                         ''')
+                    await conn.execute(f'''
+                                            UPDATE user_player_ank SET fg_genres='Да' WHERE user_id={user_id}
+                                        ''')
+                    await conn.close()
+
+    '''
+    await conn.execute(f
          INSERT INTO players(user_id, name, gender_of_user, age, add_text_of_player) VALUES(
             {about_player_info_form["user_id"]}, '{about_player_info_form["name"]}', 
             '{about_player_info_form["gender_of_user"]}', {about_player_info_form["age"]},
             '{about_player_info_form["add_text_of_player"]}')
-    ''')
+    )
 
     await conn.close()
 
     await (add_players_genres())
     await (add_find_group())
-
+'''
 
 # group section
 
@@ -323,14 +531,13 @@ async def check_gender(group_id, gender):
     need_list = await conn.fetch(f'''
                                     SELECT gender FROM find_players WHERE groups_id = {group_id};
                                 ''')
-    print(need_list[0]["gender"] == gender)
+
 
     return need_list[0]["gender"] == gender
 
 
 async def check_age(player_age, age_range):
     state = age_range[0] < player_age < age_range[1]
-    print(state)
     return state
 
 
@@ -362,7 +569,7 @@ async def get_group_id(fp_ids, rep_base):
     return data
 
 
-async def get_fp_id(genre_id, rep_base):
+async def gets_fp_id(genre_id, rep_base):
     conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
     row = await conn.fetch(f'''
                 SELECT fp_id FROM fp_genres WHERE genres_id = {genre_id};
@@ -370,7 +577,6 @@ async def get_fp_id(genre_id, rep_base):
     await conn.close()
     i = []
     for j in row:
-        print(j["fp_id"])
         i.append(j["fp_id"])
     ids = await get_group_id(i, rep_base)
     return ids
@@ -386,7 +592,6 @@ async def get_player_id(fg_ids, group_id, age_range):
         player_gender = await conn.fetch(f'''
                             SELECT gender_of_user FROM players WHERE players_id = {row[0]["players_id"]}    
                         ''')
-        print(player_gender[0])
         player_age = await conn.fetch(f'''
                             SELECT age FROM players WHERE players_id = {row[0]["players_id"]}    
                         ''')
@@ -399,7 +604,7 @@ async def get_player_id(fg_ids, group_id, age_range):
     return data
 
 
-async def get_fg_id(genre_id, group_id, age_range):
+async def gets_fg_id(genre_id, group_id, age_range):
     conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
     row = await conn.fetch(f'''
                 SELECT fg_id FROM fg_genres WHERE genres_id = {genre_id};
@@ -430,7 +635,7 @@ async def db_newsfeed(user_id):
                         SELECT genres_id FROM fg_genres WHERE fg_id = {need_list[0]["fg_id"]};
                     ''')
         for i in need_list2:
-            for j, n in enumerate(await get_fp_id(i["genres_id"], need_list[0]["repetition_base_of_group"])):
+            for j, n in enumerate(await gets_fp_id(i["genres_id"], need_list[0]["repetition_base_of_group"])):
                 return_data2 = await conn.fetch(f'''
                         SELECT * FROM groups WHERE groups_id = {n[j]["groups_id"]};
                     ''')
@@ -446,13 +651,12 @@ async def db_newsfeed(user_id):
                                         ''')
         age_range = [int(str(need_list[0]["age_range"])[0:2]), int(str(need_list[0]["age_range"])[2:])]
         for i in need_list2:
-            for j, n in enumerate(await get_fg_id(i["genres_id"], row2[0]["groups_id"], age_range)):
+            for j, n in enumerate(await gets_fg_id(i["genres_id"], row2[0]["groups_id"], age_range)):
                 return_data2 = await conn.fetch(f'''
                                 SELECT * FROM players WHERE players_id = {n[j]["players_id"]};
                             ''')
                 data.append(return_data2)
         await conn.close()
-        print(data)
         return data
 
 
@@ -542,5 +746,517 @@ async def get_player_who_liked(user_id):
     await conn.close()
     return ankets
 
+
+async def add_to_group_ank(user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+    await conn.execute(f'''
+                    INSERT INTO user_group_ank(user_id) VALUES({user_id})
+                    ''')
+
+    await conn.execute(f'''
+                        INSERT INTO groups(user_id) VALUES({user_id})
+                        ''')
+    group = await conn.fetch(f'''
+                    SELECT * FROM groups WHERE user_id={user_id}   
+                ''')
+    await conn.execute(f'''
+                    INSERT INTO find_players(groups_id) VALUES({group[0]["groups_id"]})
+                ''')
+    await conn.close()
+
+
+async def add_to_player_ank(user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+    await conn.execute(f'''
+                    INSERT INTO user_player_ank(user_id) VALUES({user_id})
+                    ''')
+    await conn.execute(f'''
+                    INSERT INTO players(user_id) VALUES({user_id})
+                    ''')
+    player = await conn.fetch(f'''
+                        SELECT * FROM players WHERE user_id={user_id}   
+                    ''')
+    await conn.execute(f'''
+                        INSERT INTO find_groups(players_id) VALUES({player[0]["players_id"]})
+                    ''')
+    await conn.close()
+
+
+async def choose_next_func(user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+    group = await conn.fetch(f'''
+                            SELECT * FROM user_group_ank WHERE user_id={user_id}
+                            ''')
+    player = await conn.fetch(f'''
+                    SELECT * FROM user_player_ank WHERE user_id={user_id}
+                ''')
+    await conn.close()
+    if group:
+        for i in range(15):
+            if i == 13:
+                return 12
+            elif group[0][usr_group[i+1]] == "Нет":
+                return i-1
+            else:
+                continue
+    else:
+        for i in range(14):
+            if i == 12:
+                return 11.1
+            elif player[0][usr_player[i+1.1]] == "Нет":
+                return i-0.9
+            else:
+                continue
+
+
+async def get_fp_age(user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+    group_id = await conn.fetch(f'''
+                            SELECT groups_id FROM groups WHERE user_id={user_id}
+                        ''')
+    age = await conn.fetch(f'''
+                            SELECT age_range FROM find_players WHERE groups_id={group_id[0]["groups_id"]}
+                        ''')
+    await conn.close()
+    return age[0]["age_range"]
+
+
+async def all_is_ok(user_id):  # check whether all the column in user_group_ank or user_player_ank are completed
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+    group = await conn.fetch(f'''
+                        SELECT * FROM user_group_ank WHERE user_id={user_id}
+                    ''')
+    player = await conn.fetch(f'''
+                        SELECT * FROM user_player_ank WHERE user_id={user_id}
+                    ''')
+    await conn.close()
+
+    if group:
+        for i in group[0]:
+            if group[0][i] == "Нет":
+                return False
+            else:
+                return True
+    else:
+        for i in player[0]:
+            if player[0][i] == "Нет":
+                return False
+            else:
+                return True
+
+
+async def finished_sector(user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+    group = await conn.fetch(f'''
+                            SELECT * FROM user_group_ank WHERE user_id={user_id}
+                        ''')
+    player = await conn.fetch(f'''
+                            SELECT * FROM user_player_ank WHERE user_id={user_id}
+                        ''')
+
+    await conn.close()
+
+    if group:
+        if group[0]["check_g_part"] != "Да":
+            return [True, "group_part"]
+        elif group[0]["check_fp_part"] != "Да":
+            return [True, "fp_part"]
+        else:
+            return [False, False]
+    else:
+        if player[0]["check_p_part"] != "Да":
+            return [True, "player_part"]
+        elif player[0]["check_g_part"] != "Да":
+            return [True, "fg_part"]
+        else:
+            return [False, False]
+
+
+async def checked_sector(user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+    group = await conn.fetch(f'''
+                            SELECT * FROM user_group_ank WHERE user_id={user_id}
+                        ''')
+    player = await conn.fetch(f'''
+                            SELECT * FROM user_player_ank WHERE user_id={user_id}
+                        ''')
+
+    await conn.close()
+
+    if group:
+        if group[0]["check_g_part"] != "Да":
+            return [True, "check_g_part"]
+        elif group[0]["check_fp_part"] != "Да":
+            return [True, "check_fp_part"]
+        else:
+            return [False, False]
+    else:
+        if player[0]["check_p_part"] != "Да":
+            return [True, "check_p_part"]
+        elif player[0]["check_fg_part"] != "Да":
+            return [True, "check_fg_part"]
+        else:
+            return [False, False]
+
+
+async def edit_check_point(user_id, sector):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+
+    group = await conn.fetch(f'''
+                               SELECT * FROM user_group_ank WHERE user_id={user_id}
+                           ''')
+    player = await conn.fetch(f'''
+                               SELECT * FROM user_player_ank WHERE user_id={user_id}
+                           ''')
+
+    if group:
+        await conn.fetch(f'''
+                UPDATE user_group_ank SET {sector}="Да" WHERE user_id={user_id}
+                ''')
+    else:
+        await conn.fetch(f'''
+                UPDATE user_player_ank SET {sector}="Да" WHERE user_id={user_id}
+                ''')
+    await conn.close()
+
+
+async def check_genres(user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+
+    group = await conn.fetch(f'''
+                                  SELECT * FROM groups WHERE user_id={user_id}
+                              ''')
+    player = await conn.fetch(f'''
+                                  SELECT * FROM players WHERE user_id={user_id}
+                              ''')
+    if group:
+        genres = await conn.fetch(f'''
+                                SELECT * FROM groups_genres WHERE groups_id={group[0]["groups_id"]}
+                            ''')
+        return genres
+    else:
+        genres = await conn.fetch(f'''
+                                        SELECT * FROM players_genres WHERE players_id={player[0]["players_id"]}
+                                    ''')
+        return genres
+
+
+async def check_find_genres(user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+
+    group = await conn.fetch(f'''
+                                      SELECT * FROM groups WHERE user_id={user_id}
+                                  ''')
+    player = await conn.fetch(f'''
+                                      SELECT * FROM players WHERE user_id={user_id}
+                                  ''')
+
+    if group:
+        fp = await conn.fetch(f'''
+                        SELECT * FROM find_players WHERE groups_id={group[0]["groups_id"]}
+                    ''')
+        genres = await conn.fetch(f'''
+                                    SELECT * FROM fp_genres WHERE fp_id={fp[0]["fp_id"]}
+                                ''')
+        return genres
+    else:
+        fg = await conn.fetch(f'''
+                            SELECT * FROM find_groups WHERE players_id={player[0]["players_id"]}
+                        ''')
+        genres = await conn.fetch(f'''
+                                SELECT * FROM fg_genres WHERE fg_id={fg[0]["fg_id"]}
+                                        ''')
+        return genres
+
+
+async def get_group_data(user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+    data1 = await conn.fetch(f'''
+                    SELECT * FROM groups WHERE user_id={user_id} 
+                ''')
+    genres_id = await conn.fetch(f'''
+                    SELECT genres_id FROM groups_genres WHERE groups_id={data1[0]["groups_id"]}
+                ''')
+    data2 = []
+    for i in genres_id:
+        name = await conn.fetch(f'''
+                    SELECT name FROM genres WHERE genres_id={i["genres_id"]} 
+                ''')
+        data2.append(name)
+    return data1 + data2
+
+
+async def get_player_data(user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+    data1 = await conn.fetch(f'''
+                    SELECT * FROM players WHERE user_id={user_id} 
+                ''')
+    genres_id = await conn.fetch(f'''
+                    SELECT genres_id FROM players_genres WHERE players_id={data1[0]["players_id"]}
+                ''')
+    data2 = []
+    for i in genres_id:
+        name = await conn.fetch(f'''
+                    SELECT name FROM genres WHERE genres_id={i["genres_id"]} 
+                ''')
+        data2.append(name)
+    return data1 + data2
+
+
+async def get_about_player_data(user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+    group = await conn.fetch(f'''
+                        SELECT groups_id FROM groups WHERE user_id={user_id} 
+                    ''')
+    data1 = await conn.fetch(f'''
+                        SELECT * FROM find_players WHERE groups_id={group[0]["groups_id"]}
+                    ''')
+    genres_id = await conn.fetch(f'''
+                        SELECT genres_id FROM fp_genres WHERE fp_id={data1[0]["fp_id"]}
+                    ''')
+    data2 = []
+    for i in genres_id:
+        name = await conn.fetch(f'''
+                        SELECT name FROM genres WHERE genres_id={i["genres_id"]} 
+                    ''')
+        data2.append(name)
+    return data1 + data2
+
+
+async def get_about_group_data(user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+    player = await conn.fetch(f'''
+                        SELECT players_id FROM players WHERE user_id={user_id} 
+                    ''')
+    data1 = await conn.fetch(f'''
+                        SELECT * FROM find_groups WHERE players_id={player[0]["players_id"]}
+                    ''')
+    genres_id = await conn.fetch(f'''
+                        SELECT genres_id FROM fg_genres WHERE fg_id={data1[0]["fg_id"]}
+                    ''')
+    data2 = []
+    for i in genres_id:
+        name = await conn.fetch(f'''
+                        SELECT name FROM genres WHERE genres_id={i["genres_id"]} 
+                    ''')
+        data2.append(name)
+    return data1 + data2
+
+
+async def all_is_done(user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+
+    group = await conn.fetch(f'''
+                                SELECT * FROM user_group_ank WHERE user_id={user_id}
+                               ''')
+    player = await conn.fetch(f'''
+                                   SELECT * FROM user_player_ank WHERE user_id={user_id}
+                               ''')
+    if group:
+        if group[0]["check_g_part"] == "Да" and group[0]["check_fp_part"] == "Да":
+            return True
+        return False
+    else:
+        if player[0]["check_p_part"] == "Да" and player[0]["check_g_part"] == "Да":
+            return True
+        return False
+
+
+async def get_check_sector(user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+
+    group = await conn.fetch(f'''
+                                    SELECT * FROM user_group_ank WHERE user_id={user_id}
+                                   ''')
+    player = await conn.fetch(f'''
+                                       SELECT * FROM user_player_ank WHERE user_id={user_id}
+                                   ''')
+    if group:
+        if group[0]["check_g_part"] == "Нет":
+            return "check_g_part"
+        elif group[0]["check_fp_part"] == "Нет":
+            return "check_fp_part"
+    else:
+        if player[0]["check_p_part"] == "Нет":
+            return "check_p_part"
+        elif player[0]["check_g_part"] == "Нет":
+            return "check_g_part"
+
+
+async def get_sector(user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+
+    group = await conn.fetch(f'''
+                            SELECT * FROM user_group_ank WHERE user_id={user_id}
+                            ''')
+    player = await conn.fetch(f'''
+                                SELECT * FROM user_player_ank WHERE user_id={user_id}
+                            ''')
+    if group:
+        if group[0]["check_g_part"] == "Нет":
+            return "group_part"
+        elif group[0]["check_fp_part"] == "Нет":
+            return "fp_part"
+    else:
+        if player[0]["check_p_part"] == "Нет":
+            return "player_part"
+        elif player[0]["check_g_part"] == "Нет":
+            return "fg_part"
+
+
+async def make_no(user_id, case):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+
+    group = await conn.fetch(f'''
+                                SELECT * FROM user_group_ank WHERE user_id={user_id}
+                                   ''')
+    player = await conn.fetch(f'''
+                                SELECT * FROM user_player_ank WHERE user_id={user_id}
+                                   ''')
+    if group:
+        await conn.execute(f'''
+                        UPDATE user_group_ank SET {case}='Нет' WHERE user_id={user_id}
+                    ''')
+        if case == "age_range":
+            groups_id = await conn.fetch(f'''
+                                SELECT groups_id FROM groups WHERE user_id={user_id}
+                                   ''')
+            await conn.execute(f'''
+                            UPDATE find_players SET age_range=null WHERE groups_id={groups_id[0]["groups_id"]}
+                        ''')
+    else:
+        await conn.execute(f'''
+                        UPDATE user_player_ank SET {case}='Нет' WHERE user_id={user_id}
+                    ''')
+
+
+async def clear_genres(user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+
+    group = await conn.fetch(f'''
+                                    SELECT groups_id FROM groups WHERE user_id={user_id}
+                                       ''')
+    player = await conn.fetch(f'''
+                                    SELECT players_id FROM players WHERE user_id={user_id}
+                                       ''')
+    sector = await get_sector(user_id)
+
+    if group:
+        if sector == "fp_part":
+            fp_id = await conn.fetch(f'''
+                            SELECT fp_id FROM find_players WHERE groups_id={group[0]["groups_id"]}
+                        ''')
+            await conn.fetch(f'''
+                            DELETE FROM fp_genres WHERE fp_id={fp_id[0]["fp_id"]}
+                        ''')
+            await conn.close()
+        elif sector == "group_part":
+            groups_id = await conn.fetch(f'''
+                            SELECT groups_id FROM groups WHERE user_id={user_id}
+                        ''')
+            await conn.fetch(f'''
+                            DELETE FROM groups_genres WHERE groups_id={groups_id[0]["groups_id"]}
+                        ''')
+            await conn.close()
+    else:
+        if sector == "fg_part":
+            fg_id = await conn.fetch(f'''
+                            SELECT fg_id FROM find_groups WHERE players_id={player[0]["players_id"]}
+                        ''')
+            await conn.fetch(f'''
+                            DELETE FROM fg_genres WHERE fg_id={fg_id[0]["fg_id"]}
+                        ''')
+            await conn.close()
+        elif sector == "player_part":
+            players_id = await conn.fetch(f'''
+                            SELECT players_id FROM players WHERE user_id={user_id}
+                        ''')
+            await conn.fetch(f'''
+                            DELETE FROM players_genres WHERE players_id={players_id[0]["players_id"]}
+                        ''')
+            await conn.close()
+
+
+async def group_age(user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+
+    group = await conn.fetch(f'''
+                        SELECT groups_id FROM groups WHERE user_id={user_id}
+                               ''')
+    if group:
+        return True
+    return False
+
+
+async def check_false(user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+
+    group = await conn.fetch(f'''
+                                        SELECT * FROM user_group_ank WHERE user_id={user_id}
+                                           ''')
+    player = await conn.fetch(f'''
+                                            SELECT * FROM user_player_ank WHERE user_id={user_id}
+                                               ''')
+    if group:
+        for i in range(13):
+            if group[0][usr_group[i + 1]] != "Нет":
+                pass
+            else:
+                return usr_group[i + 1]
+    else:
+        for i in range(10):
+            if player[0][usr_player[i + 3.1]] != "Нет":
+                pass
+            else:
+                return usr_player[i + 3.1]
+
+
+async def delete_all(user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+
+    group = await conn.fetch(f'''
+                                        SELECT * FROM groups WHERE user_id={user_id}
+                                           ''')
+    player = await conn.fetch(f'''
+                                            SELECT * FROM players WHERE user_id={user_id}
+                                               ''')
+    if group:
+        await conn.execute(f'''
+                    DELETE FROM groups_genres WHERE groups_id={group[0]["groups_id"]}
+                ''')
+        fp_id = await conn.fetch(f'''
+                 SELECT fp_id FROM find_players WHERE groups_id={group[0]["groups_id"]}
+                ''')
+        await conn.execute(f'''
+                            DELETE FROM fp_genres WHERE fp_id={fp_id[0]["fp_id"]}
+                        ''')
+        await conn.fetch(f'''
+                        DELETE FROM find_players WHERE groups_id={group[0]["groups_id"]}
+                    ''')
+        await conn.execute(f'''
+                            DELETE FROM groups WHERE user_id={user_id}
+                        ''')
+        await conn.execute(f'''
+                            DELETE FROM user_group_ank WHERE user_id={user_id}
+                        ''')
+    else:
+        await conn.execute(f'''
+                            DELETE FROM players_genres WHERE players_id={player[0]["players_id"]}
+                        ''')
+        fg_id = await conn.fetch(f'''
+                         SELECT fg_id FROM find_groups WHERE players_id={player[0]["players_id"]}
+                        ''')
+        await conn.execute(f'''
+                            DELETE FROM fg_genres WHERE fg_id={fg_id[0]["fg_id"]}
+                                ''')
+        await conn.fetch(f'''
+                                DELETE FROM find_groups WHERE players_id={player[0]["players_id"]}
+                            ''')
+        await conn.execute(f'''
+                                    DELETE FROM players WHERE user_id={user_id}
+                                ''')
+        await conn.execute(f'''
+                                    DELETE FROM user_player_ank WHERE user_id={user_id}
+                                ''')
 
 asyncio.run(main())
