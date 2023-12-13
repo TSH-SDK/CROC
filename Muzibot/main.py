@@ -8,12 +8,12 @@ from aiogram import Bot, Dispatcher
 from aiogram.types import Message, CallbackQuery, ParseMode, ReplyKeyboardRemove
 
 from keyboards import Keyboard
-from data import add_info_for_bot, about_player_info_form, about_group_info_form, finding_player_info_form,\
-    finding_group_info_form
-from db_module import add, add_group, check_user, db_newsfeed, is_player, like_group, like_player,\
+
+from db_module import add, check_user, db_newsfeed, is_player, like_group, like_player,\
     get_player_who_liked, get_group_which_liked, add_to_group_ank, add_to_player_ank, choose_next_func,\
     get_fp_age, all_is_ok, finished_sector, checked_sector, edit_check_point, get_group_data, get_about_player_data,\
-    all_is_done, get_check_sector, make_no, clear_genres, get_about_group_data, get_player_data, delete_all
+    all_is_done, get_check_sector, make_no, clear_genres, get_about_group_data, get_player_data, delete_all,\
+    photo_needed, age_needed
 
 TOKEN = config('BOT_TOKEN')
 
@@ -26,6 +26,10 @@ check_list = ["group_name", "repetition_base", "about_group", "photo_id", "genre
               "fg_genres"]
 
 # group sector
+
+
+async def give_contact(id_of_chat):
+    pass
 
 
 async def ask_name(id_of_chat: int):
@@ -150,6 +154,11 @@ usr_player = {
 }
 
 
+async def acception(id_of_chat):
+    await bot.send_message(text="Ваша анкета полностью удалится. Придётся её заполнять заново. Вы согласны?",
+                           reply_markup=Keyboard.accept_kb(), chat_id=id_of_chat)
+
+
 async def execute_func(user_id, func_id):
     if type(func_id) == float:
         await usr_player[func_id](user_id)
@@ -165,108 +174,51 @@ async def user_menu(id_of_chat: int):
 async def newsfeed(id_of_chat: int):
     ankets = await db_newsfeed(id_of_chat)
     if await is_player(id_of_chat):
-        if len(ankets) == 0 or ankets[add_info_for_bot["n"]][0]["photo_id"] == ankets[-1][0]["photo_id"]:
+        if ankets == 1:
+            await bot.send_message(text="К сожалению, нет подходящих тебе объявлений",
+                                   chat_id=id_of_chat, reply_markup=Keyboard.back_to_menu())
 
-            if len(ankets) == 0:
-                await bot.send_message(text="К сожалению, нет подходящих тебе объявлений",
-                                       chat_id=id_of_chat, reply_markup=Keyboard.back_to_menu())
-
-            else:
-                add_info_for_bot["last"] = True
-                await bot.send_photo(chat_id=id_of_chat, photo=ankets[add_info_for_bot['n']][0]["photo_id"],
-                                     caption=f"Название группы: {ankets[add_info_for_bot['n']][0]['group_name']}\n"
-                                             f"Наличие репетиционной базы: {ankets[add_info_for_bot['n']][0]['repetition_base']}\n"
-                                             f"Объявление: {ankets[add_info_for_bot['n']][0]['about_group']}\n",
-                                     reply_markup=Keyboard.like_dislike())
-                add_info_for_bot["n"] = 0
-
-                await bot.send_message(text="К сожалению, это последнее подходящее тебе объявление",
-                                       chat_id=id_of_chat, reply_markup=Keyboard.back_to_menu())
         else:
-            add_info_for_bot["last_id"] = ankets[add_info_for_bot["n"]][0]["user_id"]
-            add_info_for_bot["n"] += 1
-            await bot.send_photo(chat_id=id_of_chat, photo=ankets[add_info_for_bot['n']][0]["photo_id"],
-                                caption=f"Название группы: {ankets[add_info_for_bot['n']][0]['group_name']}\n"
-                                     f"Наличие репетиционной базы: {ankets[add_info_for_bot['n']][0]['repetition_base']}\n"
-                                     f"Объявление: {ankets[add_info_for_bot['n']][0]['about_group']}\n",
-                                 reply_markup=Keyboard.like_dislike())
+            await bot.send_photo(chat_id=id_of_chat, photo=ankets[0]["photo_id"],
+                                 caption=f"Название группы: {ankets[0]['group_name']}\n"
+                                         f"Наличие репетиционной базы: {ankets[0]['repetition_base']}\n"
+                                         f"Объявление: {ankets[0]['about_group']}\n",
+                                 reply_markup=Keyboard.like_dislike(ankets[0]["user_id"]))
     else:
-        if len(ankets) == 0 or ankets[add_info_for_bot["n"]][0]["players_id"] == ankets[-1][0]["players_id"]:
-            if len(ankets) == 0:
-                await bot.send_message(text="К сожалению, нет подходящих тебе объявлений",
-                                       chat_id=id_of_chat, reply_markup=Keyboard.back_to_menu())
-
-            else:
-                await bot.send_message(chat_id=id_of_chat, text=f"Имя: {ankets[add_info_for_bot['n']][0]['name']}\n"
-                                f"возраст: {ankets[add_info_for_bot['n']][0]['age']}\n"
-                                f"Пол: {ankets[add_info_for_bot['n']][0]['gender_of_user']}\n"
-                                f"Объявление: {ankets[add_info_for_bot['n']][0]['add_text_of_player']}\n",
-                                reply_markup=Keyboard.like_dislike())
-                add_info_for_bot["n"] = 0
-                add_info_for_bot["last"] = True
-                await bot.send_message(text="К сожалению, это последнее подходящее тебе объявление",
-                                       chat_id=id_of_chat, reply_markup=Keyboard.back_to_menu())
+        if ankets == 1:
+            await bot.send_message(text="К сожалению, нет подходящих тебе объявлений",
+                                   chat_id=id_of_chat, reply_markup=Keyboard.back_to_menu())
         else:
-            add_info_for_bot["last_id"] = ankets[add_info_for_bot["n"]][0]["user_id"]
-            add_info_for_bot["n"] += 1
-            await bot.send_message(chat_id=id_of_chat, text=f"Имя: {ankets[add_info_for_bot['n']][0]['name']}\n"
-                                                            f"возраст: {ankets[add_info_for_bot['n']][0]['age']}\n"
-                                                            f"Пол: {ankets[add_info_for_bot['n']][0]['gender_of_user']}\n"
-                                                            f"Объявление: {ankets[add_info_for_bot['n']][0]['add_text_of_player']}\n",
-                                   reply_markup=Keyboard.like_dislike())
+            await bot.send_message(chat_id=id_of_chat, text=f"Имя: {ankets[0]['name']}\n"
+                                                            f"возраст: {ankets[0]['age']}\n"
+                                                            f"Пол: {ankets['gender_of_user']}\n"
+                                                            f"Объявление: {ankets[0]['add_text_of_player']}\n",
+                                   reply_markup=Keyboard.like_dislike(ankets[0]["user_id"]))
 
 
 async def notify(id_of_chat):
     if await is_player(id_of_chat):
         ankets = await get_group_which_liked(id_of_chat)
-        if len(ankets) == 0 or ankets[add_info_for_bot["n"]][0]["photo_id"] == ankets[-1][0]["photo_id"]:
-            if len(ankets) == 0:
-                await bot.send_message(text="Нет уведомлений",
-                                       chat_id=id_of_chat, reply_markup=Keyboard.back_to_menu())
-
-            else:
-                add_info_for_bot["last"] = True
-                await bot.send_photo(chat_id=id_of_chat, photo=ankets[add_info_for_bot['n']][0]["photo_id"],
-                                     caption=f"Название группы: {ankets[add_info_for_bot['n']][0]['group_name']}\n"
-                                             f"Наличие репетиционной базы: {ankets[add_info_for_bot['n']][0]['repetition_base']}\n"
-                                             f"Объявление: {ankets[add_info_for_bot['n']][0]['about_group']}\n",
-                                     reply_markup=Keyboard.answer_kb())
-                add_info_for_bot["n"] = 0
-                await bot.send_message(text="Это последнее уведомление",
-                                       chat_id=id_of_chat, reply_markup=Keyboard.back_to_menu())
+        if ankets == 1:
+            await bot.send_message(text="Нет уведомлений",
+                                   chat_id=id_of_chat, reply_markup=Keyboard.back_to_menu())
         else:
-            add_info_for_bot["n"] += 1
-            await bot.send_photo(chat_id=id_of_chat, photo=ankets[add_info_for_bot['n']][0]["photo_id"],
-                                 caption=f"Название группы: {ankets[add_info_for_bot['n']][0]['group_name']}\n"
-                                         f"Наличие репетиционной базы: {ankets[add_info_for_bot['n']][0]['repetition_base']}\n"
-                                         f"Объявление: {ankets[add_info_for_bot['n']][0]['about_group']}\n",
+            await bot.send_photo(chat_id=id_of_chat, photo=ankets[0]["photo_id"],
+                                 caption=f"Название группы: {ankets[0]['group_name']}\n"
+                                         f"Наличие репетиционной базы: {ankets[0]['repetition_base']}\n"
+                                         f"Объявление: {ankets[0]['about_group']}\n",
                                  reply_markup=Keyboard.answer_kb())
     else:
         ankets = await get_player_who_liked(id_of_chat)
-        if len(ankets) == 0 or ankets[add_info_for_bot["n"]][0]["players_id"] == ankets[-1][0]["players_id"]:
-            if len(ankets) == 0:
-                await bot.send_message(text="Нет уведомлений",
-                                       chat_id=id_of_chat, reply_markup=Keyboard.back_to_menu())
-
-            else:
-                add_info_for_bot["last"] = True
-                await bot.send_message(chat_id=id_of_chat,
-                                       text=f"Имя: {ankets[add_info_for_bot['n']][0]['name']}\n"
-                                            f"возраст: {ankets[add_info_for_bot['n']][0]['age']}\n"
-                                            f"Пол: {ankets[add_info_for_bot['n']][0]['gender_of_user']}\n"
-                                            f"Объявление: {ankets[add_info_for_bot['n']][0]['add_text_of_player']}\n",
-                                       reply_markup=Keyboard.answer_kb())
-                add_info_for_bot["n"] = 0
-
-                await bot.send_message(text="К сожалению, это последнее подходящее тебе объявление",
-                                       chat_id=id_of_chat, reply_markup=Keyboard.back_to_menu())
+        if ankets == 1:
+            await bot.send_message(text="Нет уведомлений",
+                                   chat_id=id_of_chat, reply_markup=Keyboard.back_to_menu())
         else:
-            add_info_for_bot["n"] += 1
             await bot.send_message(chat_id=id_of_chat,
-                                   text=f"Имя: {ankets[add_info_for_bot['n']][0]['name']}\n"
-                                        f"возраст: {ankets[add_info_for_bot['n']][0]['age']}\n"
-                                        f"Пол: {ankets[add_info_for_bot['n']][0]['gender_of_user']}\n"
-                                        f"Объявление: {ankets[add_info_for_bot['n']][0]['add_text_of_player']}\n",
+                                   text=f"Имя: {ankets[0]['name']}\n"
+                                        f"возраст: {ankets[0]['age']}\n"
+                                        f"Пол: {ankets[0]['gender_of_user']}\n"
+                                        f"Объявление: {ankets[0]['add_text_of_player']}\n",
                                    reply_markup=Keyboard.answer_kb())
 
 
@@ -287,7 +239,8 @@ async def edit_form(id_of_chat: int, sector: str):
 
 async def echo_group_blank(id_of_chat: int):
     data = await get_group_data(id_of_chat)
-    print(data)
+    await bot.send_message(chat_id=id_of_chat, text="Убедитесь, что ваша анкета заполнена правильно!",
+                           reply_markup=ReplyKeyboardRemove())
     await bot.send_photo(chat_id=id_of_chat, photo=data[0]["photo_id"],
                          caption=f"Название группы: {data[0]['group_name']}\n"
                                  f"Жанр: {', '.join([i[0]['name'] for i in [j for j in data[1:]]])}\n"
@@ -298,6 +251,8 @@ async def echo_group_blank(id_of_chat: int):
 
 async def echo_finding_player_blank(id_of_chat):
     data = await get_about_player_data(id_of_chat)
+    await bot.send_message(chat_id=id_of_chat, text="Убедитесь, что check list искомого музыканта заполнен правильно!",
+                           reply_markup=ReplyKeyboardRemove())
     await bot.send_message(chat_id=id_of_chat,
                            text=f"Кого ищешь: \n"
                                 f"Пол: {data[0]['gender']}\n"
@@ -310,6 +265,8 @@ async def echo_finding_player_blank(id_of_chat):
 
 async def echo_finding_group_blank(id_of_chat):
     data = await get_about_group_data(id_of_chat)
+    await bot.send_message(chat_id=id_of_chat, text="Убедитесь, что check list искомой группы заполнен правильно!",
+                           reply_markup=ReplyKeyboardRemove())
     await bot.send_message(chat_id=id_of_chat, text=f"Кого ищешь: Группу\n"
                                                     f"Жанр: {', '.join([i[0]['name'] for i in [j for j in data[1:]]])}\n"
                                                     f"Наличие репетиционной базы: "
@@ -319,6 +276,8 @@ async def echo_finding_group_blank(id_of_chat):
 
 async def echo_about_player_blank(id_of_chat):
     data = await get_player_data(id_of_chat)
+    await bot.send_message(chat_id=id_of_chat, text="Убедитесь, что ваша анкета заполнена правильно!",
+                           reply_markup=ReplyKeyboardRemove())
     await bot.send_photo(chat_id=id_of_chat, photo=data[0]["photo_id"],
                          caption=f"О себе: \n"
                                  f"Имя: {data[0]['name']}\n"
@@ -341,40 +300,32 @@ async def bot_start(message: Message):
 async def start_callback(callback_query: CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
     if callback_query.data == "notify":
-        add_info_for_bot["n"] = 0
         await notify(callback_query.from_user.id)
     elif callback_query.data == "newsfeed":
         await newsfeed(callback_query.from_user.id)
     elif callback_query.data == "user_menu":
-        add_info_for_bot["n"] = 0
         await user_menu(callback_query.from_user.id)
     elif callback_query.data == "dislike":
-        if not add_info_for_bot["last"]:
+        await newsfeed(callback_query.from_user.id)
+    elif callback_query.data == "ignore":
+        await notify(callback_query.from_user.id)
+    elif callback_query.data.split("/")[0] == "like":
+        if await is_player(callback_query.from_user.id):
+            await like_group(callback_query.from_user.id, callback_query.data.split("/")[1])
             await newsfeed(callback_query.from_user.id)
         else:
-            pass
-    elif callback_query.data == "ignore":
-        if not add_info_for_bot["last"]:
-            await notify(callback_query.from_user.id)
-        else:
-            pass
-    elif callback_query.data == "like":
-        if not add_info_for_bot["last"]:
-            if await is_player(callback_query.from_user.id):
-                await like_group(callback_query.from_user.id, add_info_for_bot["last_id"])
-                await newsfeed(callback_query.from_user.id)
-            else:
-                await like_player(callback_query.from_user.id, add_info_for_bot["last_id"])
-                await newsfeed(callback_query.from_user.id)
-        else:
-            if await is_player(callback_query.from_user.id):
-                await like_group(callback_query.from_user.id, add_info_for_bot["last_id"])
-            else:
-                await like_player(callback_query.from_user.id, add_info_for_bot["last_id"])
+            await like_player(callback_query.from_user.id, callback_query.data.split("/")[1])
+            await newsfeed(callback_query.from_user.id)
     elif callback_query.data == "write":
-        await bot.send_message(text=f"<a href='tg://user?id={add_info_for_bot['last_id']}'>Нажми,чтобы написать</a>",
+        await bot.send_message(text=f"<a href='tg://user?id=751217450'>Нажми,чтобы написать</a>",
                                chat_id=callback_query.from_user.id,
                                parse_mode=ParseMode.HTML)
+    elif callback_query.data == "change":
+        await delete_all(callback_query.from_user.id)
+        await bot.send_message(chat_id=callback_query.from_user.id, text="Кого ты ищешь?",
+                               reply_markup=Keyboard.start_keyboard())
+    elif callback_query.data == "no_change":
+        await user_menu(callback_query.from_user.id)
     elif callback_query.data == "group":
         await add_to_player_ank(callback_query.from_user.id)
         await usr_player[1.1](callback_query.from_user.id)
@@ -385,9 +336,7 @@ async def start_callback(callback_query: CallbackQuery):
         next_func = await choose_next_func(callback_query.from_user.id)
         await execute_func(callback_query.from_user.id, next_func)
     elif callback_query.data == "change_ank":
-        await delete_all(callback_query.from_user.id)
-        await bot.send_message(chat_id=callback_query.from_user.id, text="Кого ты ищешь?",
-                               reply_markup=Keyboard.start_keyboard())
+        await acception(callback_query.from_user.id)
     elif callback_query.data == "Да":
         if await finished_sector(callback_query.from_user.id):
             statement = await finished_sector(callback_query.from_user.id)
@@ -438,12 +387,24 @@ async def start_callback(callback_query: CallbackQuery):
 
 @dp.message_handler(content_types=['document', 'photo', 'text'])
 async def handler(message: Message):
-    if message.content_type == "photo":
-        photos = message.photo
-        new_id = photos[-1].file_id
-        await add(message.from_user.id, new_id)
-        next_func = await choose_next_func(message.from_user.id)
-        await execute_func(message.from_user.id, next_func)
+    if photo_needed(message.from_user.id):
+        if message.content_type == "photo":
+            photos = message.photo
+            new_id = photos[-1].file_id
+            await add(message.from_user.id, new_id)
+            next_func = await choose_next_func(message.from_user.id)
+            await execute_func(message.from_user.id, next_func)
+        else:
+            await message.answer(text="Нам нужна картинка!")
+    elif age_needed(message.from_user.id):
+        try:
+            age = int(message.text)
+        except ValueError:
+            await message.answer(text="Введите число!")
+        else:
+            await add(message.from_user.id, int(message.text))
+            next_func = await choose_next_func(message.from_user.id)
+            await execute_func(message.from_user.id, next_func)
     else:
         await add(message.from_user.id, message.text)
         next_func = await choose_next_func(message.from_user.id)

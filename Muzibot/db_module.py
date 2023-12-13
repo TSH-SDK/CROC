@@ -1,8 +1,7 @@
 import asyncio
 import asyncpg
 
-from data import about_player_info_form, finding_group_info_form, about_group_info_form, finding_player_info_form \
-    , usr_group, usr_player
+from data import usr_group, usr_player
 
 
 async def main():
@@ -53,7 +52,6 @@ async def main():
                 UNIQUE(players_id, genres_id)
             )
     ''')
-
 
     await conn.execute('''
                 CREATE TABLE IF NOT EXISTS liked_group(
@@ -147,6 +145,32 @@ async def main():
                                 fg_genres VARCHAR(4) DEFAULT 'Нет',
                                 fg_part VARCHAR(4) DEFAULT 'Нет',
                                 check_g_part VARCHAR(4) DEFAULT 'Нет'
+                        )
+                ''')
+
+    await conn.execute('''
+                            CREATE TABLE IF NOT EXISTS watched_player_ank(
+                                id serial PRIMARY KEY,
+                                groups_id INT,
+                                watched_ank_id INT
+                            )
+                
+                
+                ''')
+
+    await conn.execute('''
+                            CREATE TABLE IF NOT EXISTS watched_group_ank(
+                                id serial PRIMARY KEY,
+                                players_id INT,
+                                watched_ank_id INT
+                            )
+                    ''')
+
+    await conn.execute('''  
+                        CREATE TABLE IF NOT EXISTS checked_notify(
+                            id serial PRIMARY KEY,
+                            user_id INT,
+                            checked_not INT
                         )
                 ''')
 
@@ -419,19 +443,6 @@ async def add(user_id, what):
                                         ''')
                     await conn.close()
 
-    '''
-    await conn.execute(f
-         INSERT INTO players(user_id, name, gender_of_user, age, add_text_of_player) VALUES(
-            {about_player_info_form["user_id"]}, '{about_player_info_form["name"]}', 
-            '{about_player_info_form["gender_of_user"]}', {about_player_info_form["age"]},
-            '{about_player_info_form["add_text_of_player"]}')
-    )
-
-    await conn.close()
-
-    await (add_players_genres())
-    await (add_find_group())
-'''
 
 # group section
 
@@ -463,65 +474,6 @@ async def get_fp_id(group_id):
 
     await conn.close()
 
-
-async def add_fp_genres(user_id):
-    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
-
-    fp_id = await get_fp_id(user_id)
-
-    for i in finding_group_info_form["genre_of_group"]:
-        genre_id = await (get_genre_id(i))
-
-        await conn.execute(f'''
-                     INSERT INTO fp_genres(fp_id, genres_id) VALUES({fp_id}, {genre_id});
-                ''')
-
-    await conn.close()
-
-
-async def add_find_player():
-    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
-
-    group_id = await (get_group_cap_id(about_group_info_form["user_id"]))
-
-    await conn.execute(f'''
-             INSERT INTO find_players(gender, age_range, add_text, groups_id) VALUES(
-                '{finding_player_info_form["gender"]}', {finding_player_info_form["age_range"][0]}{finding_player_info_form["age_range"][1]}, '{finding_player_info_form["add_text"]}', {group_id}
-             )''')
-
-    await conn.close()
-
-    await (add_fp_genres(group_id))
-
-
-async def add_groups_genres():
-    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
-    for i in about_group_info_form["genre"]:
-        genre_id = await (get_genre_id(i))
-        groups_id = await (get_group_cap_id(about_group_info_form["user_id"]))
-
-        await conn.execute(f'''
-             INSERT INTO groups_genres(groups_id, genres_id) VALUES({groups_id}, {genre_id});
-        ''')
-
-    await conn.close()
-
-
-async def add_group():
-    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
-
-    await conn.execute(f'''
-             INSERT INTO groups(user_id, group_name, repetition_base, about_group, photo_id) VALUES(
-                {about_group_info_form["user_id"]}, '{about_group_info_form["group_name"]}', 
-                '{about_group_info_form["repetition_base"]}', '{about_group_info_form["about_group"]}',
-                '{about_group_info_form["photo_id"]}');
-        ''')
-
-    await conn.close()
-
-    await (add_groups_genres())
-    await (add_find_player())
-
 # newsfeed
 
 
@@ -531,7 +483,6 @@ async def check_gender(group_id, gender):
     need_list = await conn.fetch(f'''
                                     SELECT gender FROM find_players WHERE groups_id = {group_id};
                                 ''')
-
 
     return need_list[0]["gender"] == gender
 
@@ -617,6 +568,36 @@ async def gets_fg_id(genre_id, group_id, age_range):
     return ids
 
 
+async def watched(ank_id, user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+    row = await conn.fetch(f'''
+                    SELECT players_id FROM players WHERE user_id = {user_id};
+                ''')
+
+    row2 = await conn.fetch(f'''
+                        SELECT groups_id FROM groups WHERE user_id = {user_id};
+                    ''')
+    if row:
+        check = await conn.fetch(f'''
+                        SELECT watched_ank_id FROM watched_group_ank WHERE players_id={row[0]["players_id"]}
+                    ''')
+        for i in check:
+            if ank_id == i[0]["watched_ank_id"]:
+                return True
+            continue
+        return False
+
+    else:
+        check = await conn.fetch(f'''
+                            SELECT watched_ank_id FROM watched_player_ank WHERE groups_id={row2[0]["groups_id"]}
+                        ''')
+        for i in check:
+            if ank_id == i[0]["watched_ank_id"]:
+                return False
+            continue
+        return False
+
+
 async def db_newsfeed(user_id):
     conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
     data = []
@@ -634,14 +615,21 @@ async def db_newsfeed(user_id):
         need_list2 = await conn.fetch(f'''
                         SELECT genres_id FROM fg_genres WHERE fg_id = {need_list[0]["fg_id"]};
                     ''')
-        for i in need_list2:
-            for j, n in enumerate(await gets_fp_id(i["genres_id"], need_list[0]["repetition_base_of_group"])):
-                return_data2 = await conn.fetch(f'''
-                        SELECT * FROM groups WHERE groups_id = {n[j]["groups_id"]};
+        groups = await conn.fetch('''
+                        SELECT * FROM groups
                     ''')
-                data.append(return_data2)
-        await conn.close()
-        return data
+        for i in groups:
+            if not await watched(i[0]["groups_id"], user_id):
+                await conn.execute(f'''
+                                INSERT INTO watched_group_ank(players_id, watched_ank_id) 
+                                VALUES({row[0]["players_id"]}, {groups[0]["groups_id"]})
+                            ''')
+                await conn.close()
+                if len(data) == 0:
+                    return 1
+                return groups
+            else:
+                continue
     else:
         need_list = await conn.fetch(f'''
                                 SELECT age_range, fp_id FROM find_players WHERE groups_id = {row2[0]["groups_id"]};
@@ -649,15 +637,23 @@ async def db_newsfeed(user_id):
         need_list2 = await conn.fetch(f'''
                                             SELECT genres_id FROM fp_genres WHERE fp_id = {need_list[0]["fp_id"]};
                                         ''')
-        age_range = [int(str(need_list[0]["age_range"])[0:2]), int(str(need_list[0]["age_range"])[2:])]
-        for i in need_list2:
-            for j, n in enumerate(await gets_fg_id(i["genres_id"], row2[0]["groups_id"], age_range)):
-                return_data2 = await conn.fetch(f'''
-                                SELECT * FROM players WHERE players_id = {n[j]["players_id"]};
+        # age_range = [int(str(need_list[0]["age_range"])[0:2]), int(str(need_list[0]["age_range"])[2:])]
+
+        players = await conn.fetch('''
+                                SELECT * FROM players
                             ''')
-                data.append(return_data2)
-        await conn.close()
-        return data
+        for i in players:
+            if not await watched(i[0]["players_id"], user_id):
+                await conn.execute(f'''
+                                    INSERT INTO watched_player_ank(groups_id, watched_ank_id) 
+                                    VALUES({row2[0]["groups_id"]}, {players[0]["olayers_id"]})
+                            ''')
+                await conn.close()
+                if len(data) == 0:
+                    return 1
+                return players
+            else:
+                continue
 
 
 async def is_player(user_id):
@@ -713,21 +709,49 @@ async def like_player(who, whom):
     await conn.close()
 
 
+async def watched_g_not(ank_id, user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+
+    check = await conn.fetch(f'''
+                    SELECT checked_not FROM checked_notify WHERE user_id={user_id}
+                ''')
+    for i in check:
+        if ank_id == i[0]["checked_not"]:
+            return True
+        continue
+    return False
+
+
+async def watched_not(ank_id, user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+
+    check = await conn.fetch(f'''
+                        SELECT checked_not FROM checked_notify WHERE user_id={user_id}
+                    ''')
+    for i in check:
+        if ank_id == i[0]["checked_not"]:
+            return True
+        continue
+    return False
+
+
 async def get_group_which_liked(user_id):
     conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
     p_id = await get_like_player_id(user_id)
     g_id = await conn.fetch(f'''
                     SELECT who_liked FROM liked_player WHERE players_id = {p_id}
                 ''')
-
-    ankets = []
     for i in g_id:
-        data = await conn.fetch(f'''
-                    SELECT * from groups WHERE groups_id = {i["who_liked"]}
-                ''')
-        ankets.append(data)
-    await conn.close()
-    return ankets
+        if not watched_not(i, user_id):
+            data = await conn.fetch(f'''
+                        SELECT * from groups WHERE groups_id = {i["who_liked"]}
+                    ''')
+            await conn.close()
+            if len(data) == 0:
+                return 1
+            return data
+        else:
+            continue
 
 
 async def get_player_who_liked(user_id):
@@ -737,14 +761,17 @@ async def get_player_who_liked(user_id):
                     SELECT who_liked FROM liked_group WHERE group_id = {g_id}
                 ''')
 
-    ankets = []
     for i in p_id:
-        data = await conn.fetch(f'''
-                    SELECT * from players WHERE players_id = {i["who_liked"]}
-                ''')
-        ankets.append(data)
-    await conn.close()
-    return ankets
+        if not watched_not(i, user_id):
+            data = await conn.fetch(f'''
+                        SELECT * from players WHERE players_id = {i["who_liked"]}
+                    ''')
+            await conn.close()
+            if len(data) == 0:
+                return 1
+            return data
+        else:
+            continue
 
 
 async def add_to_group_ank(user_id):
@@ -1259,4 +1286,41 @@ async def delete_all(user_id):
                                     DELETE FROM user_player_ank WHERE user_id={user_id}
                                 ''')
 
+
+async def photo_needed(user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+
+    group = await conn.fetch(f'''
+                                            SELECT * FROM user_group_ank WHERE user_id={user_id}
+                                               ''')
+    player = await conn.fetch(f'''
+                                                SELECT * FROM user_player_ank WHERE user_id={user_id}
+                                                   ''')
+    if group:
+        if group[0]["about_group"] == "Да" and group[0]["photo_id"] == "Нет":
+            return True
+        return False
+    else:
+        if player[0]["gender_of_user"] == "Да" and player[0]["photo_id"] == "Нет":
+            return True
+        return False
+
+
+async def age_needed(user_id):
+    conn = await asyncpg.connect(user="postgres", database="muzibara_bot", password="12345", host='127.0.0.1')
+
+    group = await conn.fetch(f'''
+                                            SELECT * FROM user_group_ank WHERE user_id={user_id}
+                                               ''')
+    player = await conn.fetch(f'''
+                                                SELECT * FROM user_player_ank WHERE user_id={user_id}
+                                                   ''')
+    if group:
+        if group[0]["gender"] == "Да" and group[0]["age_range"] == "Нет":
+            return True
+        return False
+    else:
+        if player[0]["photo_id"] == "Да" and player[0]["age"] == "Нет":
+            return True
+        return False
 asyncio.run(main())

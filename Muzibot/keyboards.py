@@ -1,7 +1,6 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 
-from data import finding_player_info_form, finding_group_info_form, add_info_for_bot, about_player_info_form,\
-    about_group_info_form
+from data import add_info_for_bot
 
 from db_module import check_genres, check_find_genres, group_age, check_false
 
@@ -121,14 +120,14 @@ class Keyboard:
     @staticmethod
     def user_menu():
         inline_btn_1 = InlineKeyboardButton("Уведомления", callback_data="notify")
-        inline_btn_2 = InlineKeyboardButton("Изменить анкету", callback_data="change_ank")
-        inline_btn_3 = InlineKeyboardButton("Лента объявлений", callback_data="newsfeed")
+        inline_btn_2 = InlineKeyboardButton("Изменить\n анкету", callback_data="change_ank")
+        inline_btn_3 = InlineKeyboardButton("Лента\n объявлений", callback_data="newsfeed")
         inline_kb_10 = InlineKeyboardMarkup().add(inline_btn_1, inline_btn_2, inline_btn_3)
         return inline_kb_10
 
     @staticmethod
-    def like_dislike():
-        inline_btn_1 = InlineKeyboardButton("Лайк❤️", callback_data="like")
+    def like_dislike(user_id):
+        inline_btn_1 = InlineKeyboardButton("Лайк❤️", callback_data=f"like/{user_id}")
         inline_btn_2 = InlineKeyboardButton("Дизлайк", callback_data="dislike")
         if not add_info_for_bot["last"]:
             inline_btn_3 = InlineKeyboardButton("Выйти в меню", callback_data="user_menu")
@@ -153,3 +152,10 @@ class Keyboard:
         else:
             inline_kb_13 = InlineKeyboardMarkup(row_width=2).add(inline_btn_1, inline_btn_2)
         return inline_kb_13
+
+    @staticmethod
+    def accept_kb():
+        inline_btn_1 = InlineKeyboardButton("Да", callback_data="change")
+        inline_btn_2 = InlineKeyboardButton("Нет", callback_data="no_change")
+        inline_kb14 = InlineKeyboardMarkup().row(inline_btn_1, inline_btn_2)
+        return inline_kb14
